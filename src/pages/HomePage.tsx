@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { BlogPostMeta } from '@/types/blog';
-import { fetchAllPosts } from '@/services/github';
+import { fetchAllPosts } from '@/services/api';
 import { Carousel, LoadingSpinner } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 

@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import type { BlogFormData, PostStatus } from '@/types/blog';
 import { useAuth } from '@/context/AuthContext';
-import { fetchPostBySlug, updatePost, uploadImage } from '@/services/github';
+import { fetchPostBySlug, updatePost, uploadImage } from '@/services/api';
 import {
   Button,
   MarkdownEditor,

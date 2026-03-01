@@ -56,12 +56,12 @@ async function fetchUserRole(token: string): Promise<Role> {
 }
 
 async function exchangeCodeForToken(code: string): Promise<string> {
-  const workerUrl = config.github.oauthWorkerUrl;
-  if (!workerUrl) {
-    throw new Error('OAuth worker URL is not configured (VITE_OAUTH_WORKER_URL)');
+  const apiBase = config.github.apiBaseUrl;
+  if (!apiBase) {
+    throw new Error('API base URL is not configured (VITE_API_BASE_URL)');
   }
 
-  const response = await fetch(workerUrl, {
+  const response = await fetch(`${apiBase}/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code, client_id: config.github.clientId }),

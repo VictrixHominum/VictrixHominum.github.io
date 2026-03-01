@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import type { BlogPost } from '@/types/blog';
-import { fetchPostBySlug, deletePost } from '@/services/github';
+import { fetchPostBySlug, deletePost } from '@/services/api';
 import { LoadingSpinner, Button, ConfirmModal } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 

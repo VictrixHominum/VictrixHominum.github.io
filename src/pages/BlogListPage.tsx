@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { BlogPostMeta, SortOption } from '@/types/blog';
-import { fetchAllPosts } from '@/services/github';
+import { fetchAllPosts } from '@/services/api';
 import { Card, FilterBar, LoadingSpinner } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 

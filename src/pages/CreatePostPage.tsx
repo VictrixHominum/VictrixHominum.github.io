@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import type { BlogFormData, PostStatus } from '@/types/blog';
 import { useAuth } from '@/context/AuthContext';
-import { createPost, uploadImage } from '@/services/github';
+import { createPost, uploadImage } from '@/services/api';
 import { Button, MarkdownEditor } from '@/components/ui';
 
 export default function CreatePostPage() {
