@@ -1,5 +1,5 @@
-import { Fragment, useRef, useCallback } from 'react';
-import type { ChangeEvent, ReactNode } from 'react';
+import { Fragment, useState, useRef, useCallback } from 'react';
+import type { ChangeEvent, KeyboardEvent, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -10,6 +10,14 @@ export interface MarkdownEditorProps {
   onImageUpload: (file: File) => Promise<string>;
 }
 
+interface KeyboardShortcut {
+  /** KeyboardEvent.code value, e.g. 'KeyB', 'Digit1' */
+  code: string;
+  shift?: boolean;
+  /** Base key label without modifiers, e.g. 'B', '1', '.' */
+  key: string;
+}
+
 interface ToolbarAction {
   label: string;
   icon: ReactNode;
@@ -18,6 +26,8 @@ interface ToolbarAction {
   block?: boolean;
   /** Render a vertical divider before this button */
   divider?: boolean;
+  /** Keyboard shortcut (Cmd/Ctrl modifier is implied) */
+  shortcut?: KeyboardShortcut;
 }
 
 // ---- Alignment SVG icons (16×16, three bars) ----
@@ -54,28 +64,29 @@ function AlignRightIcon() {
 
 const toolbarActions: ToolbarAction[] = [
   // Text formatting
-  { label: 'Bold', icon: 'B', prefix: '**', suffix: '**' },
-  { label: 'Italic', icon: 'I', prefix: '*', suffix: '*' },
+  { label: 'Bold', icon: 'B', prefix: '**', suffix: '**', shortcut: { code: 'KeyB', key: 'B' } },
+  { label: 'Italic', icon: 'I', prefix: '*', suffix: '*', shortcut: { code: 'KeyI', key: 'I' } },
+  { label: 'Strikethrough', icon: 'S̶', prefix: '~~', suffix: '~~', shortcut: { code: 'KeyD', shift: true, key: 'D' } },
 
   // Headings
-  { label: 'Heading 1', icon: 'H1', prefix: '# ', suffix: '', block: true, divider: true },
-  { label: 'Heading 2', icon: 'H2', prefix: '## ', suffix: '', block: true },
-  { label: 'Heading 3', icon: 'H3', prefix: '### ', suffix: '', block: true },
+  { label: 'Heading 1', icon: 'H1', prefix: '# ', suffix: '', block: true, divider: true, shortcut: { code: 'Digit1', shift: true, key: '1' } },
+  { label: 'Heading 2', icon: 'H2', prefix: '## ', suffix: '', block: true, shortcut: { code: 'Digit2', shift: true, key: '2' } },
+  { label: 'Heading 3', icon: 'H3', prefix: '### ', suffix: '', block: true, shortcut: { code: 'Digit3', shift: true, key: '3' } },
 
-  // Alignment
+  // Alignment (no keyboard shortcuts — less commonly used)
   { label: 'Align Left', icon: <AlignLeftIcon />, prefix: '<div align="left">\n\n', suffix: '\n\n</div>', block: true, divider: true },
   { label: 'Align Center', icon: <AlignCenterIcon />, prefix: '<div align="center">\n\n', suffix: '\n\n</div>', block: true },
   { label: 'Align Right', icon: <AlignRightIcon />, prefix: '<div align="right">\n\n', suffix: '\n\n</div>', block: true },
 
   // Rich content
-  { label: 'Link', icon: '🔗', prefix: '[', suffix: '](url)', divider: true },
+  { label: 'Link', icon: '🔗', prefix: '[', suffix: '](url)', divider: true, shortcut: { code: 'KeyK', key: 'K' } },
   { label: 'Image', icon: '🖼', prefix: '![alt](', suffix: ')' },
-  { label: 'Code', icon: '<>', prefix: '```\n', suffix: '\n```', block: true },
-  { label: 'Quote', icon: '>', prefix: '> ', suffix: '', block: true },
-  { label: 'Unordered List', icon: '•', prefix: '- ', suffix: '', block: true },
-  { label: 'Ordered List', icon: '1.', prefix: '1. ', suffix: '', block: true },
-  { label: 'Horizontal Rule', icon: '—', prefix: '\n---\n', suffix: '', block: true },
-  { label: 'Footnote', icon: '¹', prefix: '', suffix: '' },
+  { label: 'Code', icon: '<>', prefix: '```\n', suffix: '\n```', block: true, shortcut: { code: 'KeyE', key: 'E' } },
+  { label: 'Quote', icon: '>', prefix: '> ', suffix: '', block: true, shortcut: { code: 'Period', shift: true, key: '.' } },
+  { label: 'Unordered List', icon: '•', prefix: '- ', suffix: '', block: true, shortcut: { code: 'Digit8', shift: true, key: '8' } },
+  { label: 'Ordered List', icon: '1.', prefix: '1. ', suffix: '', block: true, shortcut: { code: 'Digit7', shift: true, key: '7' } },
+  { label: 'Horizontal Rule', icon: '—', prefix: '\n---\n', suffix: '', block: true, shortcut: { code: 'Minus', shift: true, key: '-' } },
+  { label: 'Footnote', icon: '¹', prefix: '', suffix: '', shortcut: { code: 'KeyF', shift: true, key: 'F' } },
 ];
 
 /**
@@ -94,6 +105,17 @@ function getNextFootnoteNumber(content: string): number {
   return Math.max(...used) + 1;
 }
 
+const isMac =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);
+
+/** Format a keyboard shortcut for display, e.g. "⌘B" or "Ctrl+B". */
+function formatShortcut(sc: KeyboardShortcut): string {
+  if (isMac) {
+    return sc.shift ? `⌘⇧${sc.key}` : `⌘${sc.key}`;
+  }
+  return sc.shift ? `Ctrl+Shift+${sc.key}` : `Ctrl+${sc.key}`;
+}
+
 export function MarkdownEditor({
   value,
   onChange,
@@ -101,6 +123,13 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [tooltip, setTooltip] = useState<{
+    label: string;
+    shortcut?: KeyboardShortcut;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const insertMarkdown = useCallback(
     (action: ToolbarAction) => {
@@ -213,6 +242,27 @@ export function MarkdownEditor({
     [value, onChange, onImageUpload],
   );
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      for (const action of toolbarActions) {
+        if (!action.shortcut) continue;
+        const sc = action.shortcut;
+        if (
+          e.code === sc.code &&
+          Boolean(e.shiftKey) === Boolean(sc.shift)
+        ) {
+          e.preventDefault();
+          handleToolbarClick(action);
+          return;
+        }
+      }
+    },
+    [handleToolbarClick],
+  );
+
   return (
     <div className="flex flex-col rounded-xl border border-surface-300 overflow-hidden bg-surface-50">
       {/* Toolbar */}
@@ -225,7 +275,16 @@ export function MarkdownEditor({
             <button
               type="button"
               onClick={() => handleToolbarClick(action)}
-              title={action.label}
+              onMouseEnter={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setTooltip({
+                  label: action.label,
+                  shortcut: action.shortcut,
+                  x: rect.left + rect.width / 2,
+                  y: rect.bottom + 6,
+                });
+              }}
+              onMouseLeave={() => setTooltip(null)}
               aria-label={action.label}
               className="flex items-center justify-center h-8 min-w-[2rem] px-2 rounded-md text-sm text-gray-400 hover:text-gray-100 hover:bg-surface-200 transition-colors duration-150 font-mono shrink-0"
             >
@@ -233,6 +292,41 @@ export function MarkdownEditor({
             </button>
           </Fragment>
         ))}
+
+        {/* Spacer to push shortcuts toggle to the right */}
+        <div className="flex-1" />
+
+        <button
+          type="button"
+          onClick={() => setShowShortcuts((prev) => !prev)}
+          onMouseEnter={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setTooltip({
+              label: 'Keyboard Shortcuts',
+              x: rect.left + rect.width / 2,
+              y: rect.bottom + 6,
+            });
+          }}
+          onMouseLeave={() => setTooltip(null)}
+          aria-label="Toggle keyboard shortcuts"
+          aria-expanded={showShortcuts}
+          className={`flex items-center justify-center h-8 px-2 rounded-md text-sm transition-colors duration-150 font-mono shrink-0 ${
+            showShortcuts
+              ? 'text-primary-400 bg-surface-200'
+              : 'text-gray-400 hover:text-gray-100 hover:bg-surface-200'
+          }`}
+        >
+          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <rect x="1" y="2" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="3" y="5" width="2" height="1.5" rx="0.3" />
+            <rect x="7" y="5" width="2" height="1.5" rx="0.3" />
+            <rect x="11" y="5" width="2" height="1.5" rx="0.3" />
+            <rect x="3" y="8" width="2" height="1.5" rx="0.3" />
+            <rect x="7" y="8" width="2" height="1.5" rx="0.3" />
+            <rect x="11" y="8" width="2" height="1.5" rx="0.3" />
+            <rect x="5" y="11" width="6" height="1.5" rx="0.3" />
+          </svg>
+        </button>
 
         <input
           ref={fileInputRef}
@@ -244,10 +338,28 @@ export function MarkdownEditor({
         />
       </div>
 
+      {/* Collapsible keyboard shortcuts reference */}
+      {showShortcuts && (
+        <div className="px-4 py-3 border-b border-surface-300 bg-surface-100/50">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
+            {toolbarActions
+              .filter((a) => a.shortcut)
+              .map((a) => (
+                <div key={a.label} className="flex items-center justify-between gap-2">
+                  <span className="text-gray-400">{a.label}</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-surface-200 border border-surface-300 text-gray-300 font-mono text-[11px] whitespace-nowrap">
+                    {formatShortcut(a.shortcut!)}
+                  </kbd>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Editor and preview panes */}
       <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-surface-300 min-h-[400px]">
-        {/* Editor pane */}
-        <div className="flex-1 flex flex-col">
+        {/* Editor pane — 2× wider than preview */}
+        <div className="flex-[2] flex flex-col">
           <div className="px-3 py-1.5 text-xs text-gray-500 font-mono border-b border-surface-300 bg-surface-100/50">
             Markdown
           </div>
@@ -255,6 +367,7 @@ export function MarkdownEditor({
             ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Write your markdown here..."
             spellCheck={false}
             className="flex-1 w-full p-4 bg-transparent text-gray-200 text-sm font-mono leading-relaxed placeholder-gray-600 resize-none focus:outline-none"
@@ -284,6 +397,25 @@ export function MarkdownEditor({
           </div>
         </div>
       </div>
+
+      {/* Floating tooltip (fixed so it's never clipped by overflow) */}
+      {tooltip && (
+        <div
+          className="fixed z-50 px-2.5 py-1.5 text-xs rounded-md bg-gray-900 border border-surface-300 text-gray-200 whitespace-nowrap pointer-events-none shadow-lg"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          {tooltip.label}
+          {tooltip.shortcut && (
+            <kbd className="ml-1.5 px-1 py-0.5 rounded bg-surface-200 border border-surface-300 text-gray-400 font-mono text-[10px]">
+              {formatShortcut(tooltip.shortcut)}
+            </kbd>
+          )}
+        </div>
+      )}
     </div>
   );
 }
