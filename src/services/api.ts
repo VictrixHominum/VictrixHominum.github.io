@@ -1,7 +1,7 @@
 import type { BlogPost, BlogPostMeta, PostStatus } from '../types/blog';
 import { config } from '../config';
 
-const API_BASE = config.github.apiBaseUrl;
+const API_BASE = config.github.apiBaseUrl.replace(/\/+$/, '');
 
 // ---------------------------------------------------------------------------
 // API helper

@@ -56,7 +56,7 @@ async function fetchUserRole(token: string): Promise<Role> {
 }
 
 async function exchangeCodeForToken(code: string): Promise<string> {
-  const apiBase = config.github.apiBaseUrl;
+  const apiBase = config.github.apiBaseUrl.replace(/\/+$/, '');
   if (!apiBase) {
     throw new Error('API base URL is not configured (VITE_API_BASE_URL)');
   }
