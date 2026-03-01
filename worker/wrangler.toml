@@ -4,7 +4,16 @@ compatibility_date = "2024-01-01"
 no_bundle = true
 
 [vars]
-ALLOWED_ORIGINS = "https://victrixhominum.github.io,http://localhost:5173"
+ALLOWED_ORIGINS = "https://victrixhominum.github.io,http://127.0.0.1:5173,http://localhost:5173"
 
-# Set these as secrets via: wrangler secret put GITHUB_CLIENT_ID
-# and: wrangler secret put GITHUB_CLIENT_SECRET
+# ------------------------------------------------------------------
+# Setup: run this from the worker/ directory:
+#
+#   wrangler secret put GITHUB_CLIENT_SECRET
+#
+# Paste the client secret from your GitHub OAuth App when prompted.
+# (Settings → Developer settings → OAuth Apps → your app → Client secrets)
+#
+# The client_id is sent by the frontend at runtime, so only the
+# secret needs to be stored here.
+# ------------------------------------------------------------------
