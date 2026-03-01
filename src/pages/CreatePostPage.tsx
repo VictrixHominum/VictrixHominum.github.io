@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import type { FormEvent } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import type { FormEvent, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -39,6 +39,28 @@ export default function CreatePostPage() {
     async (file: File): Promise<string> => {
       if (!token) throw new Error('Not authenticated');
       return uploadImage(file, token);
+    },
+    [token],
+  );
+
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  const handleCoverUpload = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !token) return;
+
+      setIsUploadingCover(true);
+      try {
+        const url = await uploadImage(file, token);
+        updateField('coverImage', url);
+      } catch {
+        setFeedback({ type: 'error', message: 'Failed to upload cover image.' });
+      } finally {
+        setIsUploadingCover(false);
+        e.target.value = '';
+      }
     },
     [token],
   );
@@ -171,23 +193,115 @@ export default function CreatePostPage() {
             />
           </div>
 
-          {/* Cover Image URL */}
+          {/* Cover Image */}
           <div>
-            <label
-              htmlFor="coverImage"
-              className="block text-sm font-medium text-gray-300 mb-1.5"
-            >
-              Cover Image URL{' '}
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              Cover Image{' '}
               <span className="text-gray-600 font-normal">(optional)</span>
             </label>
+
+            {formData.coverImage ? (
+              <div className="relative rounded-lg border border-surface-300 overflow-hidden bg-surface-50">
+                <img
+                  src={formData.coverImage}
+                  alt="Cover preview"
+                  className="w-full h-48 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3">
+                  <span className="text-xs text-gray-300 font-mono truncate max-w-[60%]">
+                    {formData.coverImage}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateField('coverImage', '')}
+                    className="rounded-md px-2.5 py-1 text-xs font-medium text-gray-300 bg-surface-200/80 hover:bg-surface-300 backdrop-blur-sm transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => coverInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center gap-2 w-full h-36 rounded-lg border-2 border-dashed transition-colors duration-150 cursor-pointer ${
+                  isUploadingCover
+                    ? 'border-primary-500/50 bg-primary-500/5'
+                    : 'border-surface-300 hover:border-primary-500/40 hover:bg-surface-100/50'
+                }`}
+              >
+                {isUploadingCover ? (
+                  <>
+                    <svg
+                      className="animate-spin h-6 w-6 text-primary-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-400">Uploading…</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-8 w-8 text-gray-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-500">
+                      Click to upload a cover image
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
             <input
-              id="coverImage"
-              type="text"
-              value={formData.coverImage}
-              onChange={(e) => updateField('coverImage', e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className="w-full px-4 py-2.5 text-sm bg-surface-50 border border-surface-300 rounded-lg text-gray-200 placeholder-gray-600 transition-colors duration-150 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleCoverUpload}
+              className="hidden"
+              aria-hidden="true"
             />
+
+            {/* Fallback: paste a URL instead */}
+            {!formData.coverImage && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-gray-600">or paste a URL:</span>
+                <input
+                  id="coverImage"
+                  type="text"
+                  value={formData.coverImage}
+                  onChange={(e) => updateField('coverImage', e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  className="flex-1 px-3 py-1.5 text-xs bg-surface-50 border border-surface-300 rounded-md text-gray-200 placeholder-gray-600 transition-colors duration-150 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+            )}
           </div>
 
           {/* Markdown Editor */}
@@ -233,6 +347,16 @@ export default function CreatePostPage() {
                           {tag}
                         </span>
                       ))}
+                  </div>
+                )}
+
+                {formData.coverImage && (
+                  <div className="rounded-lg overflow-hidden mb-6 border border-surface-200">
+                    <img
+                      src={formData.coverImage}
+                      alt="Cover"
+                      className="w-full h-auto object-cover"
+                    />
                   </div>
                 )}
 
