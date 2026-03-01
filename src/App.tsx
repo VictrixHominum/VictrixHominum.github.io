@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
 import { Layout } from '@/components/layout/Layout';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
@@ -11,34 +11,48 @@ import EditPostPage from '@/pages/EditPostPage';
 import OAuthCallbackPage from '@/pages/OAuthCallbackPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
-function App() {
+/**
+ * Wraps the top-level Layout with the AuthProvider so every route
+ * has access to authentication context.
+ */
+function AuthLayout() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route element={<Layout />}>
-            {/* Public routes */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/blog" element={<BlogListPage />} />
-            <Route path="/blog/:slug" element={<BlogPostPage />} />
-
-            {/* Admin routes (hidden but accessible) */}
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/admin/callback" element={<OAuthCallbackPage />} />
-
-            {/* Protected admin routes */}
-            <Route element={<ProtectedRoute requiredRole="admin" />}>
-              <Route path="/admin/create" element={<CreatePostPage />} />
-              <Route path="/admin/edit/:slug" element={<EditPostPage />} />
-            </Route>
-
-            {/* 404 */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <AuthProvider>
+      <Layout />
+    </AuthProvider>
   );
+}
+
+const router = createBrowserRouter([
+  {
+    element: <AuthLayout />,
+    children: [
+      // Public routes
+      { path: '/', element: <HomePage /> },
+      { path: '/blog', element: <BlogListPage /> },
+      { path: '/blog/:slug', element: <BlogPostPage /> },
+
+      // Admin routes (hidden but accessible)
+      { path: '/admin', element: <AdminPage /> },
+      { path: '/admin/callback', element: <OAuthCallbackPage /> },
+
+      // Protected admin routes
+      {
+        element: <ProtectedRoute requiredRole="admin" />,
+        children: [
+          { path: '/admin/create', element: <CreatePostPage /> },
+          { path: '/admin/edit/:slug', element: <EditPostPage /> },
+        ],
+      },
+
+      // 404
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+]);
+
+function App() {
+  return <RouterProvider router={router} />;
 }
 
 export default App;
