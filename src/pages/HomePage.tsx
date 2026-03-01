@@ -7,16 +7,13 @@ import { Carousel, LoadingSpinner } from '@/components/ui';
 const RECENT_DAYS = 30;
 
 const techStack = [
-  'React',
   'TypeScript',
   'Node.js',
   'Python',
-  'Tailwind CSS',
   'PostgreSQL',
-  'Docker',
   'AWS',
-  'Git',
   'GraphQL',
+  'MySql'
 ];
 
 export default function HomePage() {
@@ -69,10 +66,9 @@ export default function HomePage() {
           </p>
 
           <p className="mt-6 max-w-2xl mx-auto text-gray-400 leading-relaxed">
-            I'm a software developer who enjoys building tools and writing about
-            the technologies behind them. This site is where I share deep dives
-            into web development, systems design, and the occasional side
-            project. If it runs on code, I've probably written about it.
+            I am an engineering leader with a focus on delivery and building a strong engineering culture.
+            This site was mostly to test out AI tools but also as I wanted a place to write my anti-'analyslop'
+            and technical ramblings.
           </p>
 
           <div className="mt-8 flex items-center justify-center gap-4">
