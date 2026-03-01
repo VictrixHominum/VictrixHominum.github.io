@@ -8,7 +8,7 @@ const navLinks = [
 ] as const;
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -31,6 +31,15 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+
+            {user && role === 'admin' && (
+              <Link
+                to="/admin/create"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-primary-400 hover:bg-surface-100 hover:text-primary-300 transition-colors"
+              >
+                + New Post
+              </Link>
+            )}
 
             {user && (
               <div className="ml-4 flex items-center gap-3 border-l border-surface-300 pl-4">
@@ -83,6 +92,16 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+
+            {user && role === 'admin' && (
+              <Link
+                to="/admin/create"
+                onClick={() => setMobileOpen(false)}
+                className="block rounded-lg px-3 py-2 text-sm font-medium text-primary-400 hover:bg-surface-100 hover:text-primary-300 transition-colors"
+              >
+                + New Post
+              </Link>
+            )}
 
             {user && (
               <div className="mt-2 flex items-center gap-3 border-t border-surface-300 pt-3">
