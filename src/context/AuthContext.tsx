@@ -58,7 +58,7 @@ async function exchangeCodeForToken(code: string): Promise<string> {
   const response = await fetch(config.github.oauthWorkerUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, client_id: config.github.clientId }),
   });
 
   if (!response.ok) {

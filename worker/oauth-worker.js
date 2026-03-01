@@ -2,11 +2,14 @@
  * Cloudflare Worker for GitHub OAuth token exchange.
  *
  * Deploy this as a Cloudflare Worker and set these environment variables:
- *   - GITHUB_CLIENT_ID: Your GitHub OAuth App client ID
- *   - GITHUB_CLIENT_SECRET: Your GitHub OAuth App client secret
- *   - ALLOWED_ORIGINS: Comma-separated list of allowed origins (e.g., "https://victrixhominum.github.io,http://localhost:5173")
+ *   - GITHUB_CLIENT_ID_PROD: Production OAuth App client ID
+ *   - GITHUB_CLIENT_SECRET_PROD: Production OAuth App client secret
+ *   - GITHUB_CLIENT_ID_DEV: Dev OAuth App client ID (optional)
+ *   - GITHUB_CLIENT_SECRET_DEV: Dev OAuth App client secret (optional)
+ *   - ALLOWED_ORIGINS: Comma-separated allowed origins
  *
- * The worker exposes a single POST endpoint that exchanges an OAuth code for an access token.
+ * The client sends its client_id with the code so the worker can
+ * match it to the correct secret (dev vs prod).
  */
 
 export default {
@@ -33,10 +36,31 @@ export default {
     }
 
     try {
-      const { code } = await request.json();
+      const { code, client_id } = await request.json();
 
       if (!code) {
         return new Response(JSON.stringify({ error: 'Missing code parameter' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Match client_id to the correct secret
+      let resolvedClientId = client_id;
+      let resolvedClientSecret;
+
+      if (client_id === env.GITHUB_CLIENT_ID_DEV) {
+        resolvedClientSecret = env.GITHUB_CLIENT_SECRET_DEV;
+      } else if (client_id === env.GITHUB_CLIENT_ID_PROD) {
+        resolvedClientSecret = env.GITHUB_CLIENT_SECRET_PROD;
+      } else {
+        // Fallback: single-app setup (backwards compatible)
+        resolvedClientId = client_id || env.GITHUB_CLIENT_ID_PROD || env.GITHUB_CLIENT_ID;
+        resolvedClientSecret = env.GITHUB_CLIENT_SECRET_PROD || env.GITHUB_CLIENT_SECRET;
+      }
+
+      if (!resolvedClientSecret) {
+        return new Response(JSON.stringify({ error: 'Unknown client_id' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -50,8 +74,8 @@ export default {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          client_id: env.GITHUB_CLIENT_ID,
-          client_secret: env.GITHUB_CLIENT_SECRET,
+          client_id: resolvedClientId,
+          client_secret: resolvedClientSecret,
           code,
         }),
       });
