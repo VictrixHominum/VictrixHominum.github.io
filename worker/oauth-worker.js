@@ -4,11 +4,15 @@
  * Deploy this as a Cloudflare Worker and set one secret:
  *   wrangler secret put GITHUB_CLIENT_SECRET
  *
- * The client sends its client_id alongside the code, so the worker
- * only needs to know the matching client_secret.
- *
  * Environment variables (set in wrangler.toml [vars]):
  *   - ALLOWED_ORIGINS: Comma-separated allowed origins
+ *   - ALLOWED_USER:    GitHub username that is permitted to log in
+ *
+ * Security: after exchanging the OAuth code for a token, the worker
+ * calls the GitHub /user API to verify the *actual* authenticated
+ * identity. The token is only returned if the verified username
+ * matches ALLOWED_USER. A spoofed username in the request body is
+ * ignored — identity is always checked server-side against GitHub.
  */
 
 export default {
@@ -79,7 +83,55 @@ export default {
         });
       }
 
-      return new Response(JSON.stringify({ access_token: tokenData.access_token }), {
+      const accessToken = tokenData.access_token;
+
+      // ── Server-side identity verification ──────────────────────────
+      // Call GitHub's /user endpoint with the newly obtained token to
+      // confirm who actually authenticated. This cannot be spoofed.
+      const allowedUser = (env.ALLOWED_USER || '').toLowerCase();
+
+      if (allowedUser) {
+        const userResponse = await fetch('https://api.github.com/user', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'victrixhominum-oauth-worker',
+          },
+        });
+
+        if (!userResponse.ok) {
+          return new Response(JSON.stringify({ error: 'Failed to verify user identity' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const userData = await userResponse.json();
+        const authenticatedUser = (userData.login || '').toLowerCase();
+
+        if (authenticatedUser !== allowedUser) {
+          // Revoke the token so it can't be intercepted and used
+          await fetch(`https://api.github.com/applications/${client_id}/token`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: 'Basic ' + btoa(client_id + ':' + clientSecret),
+              Accept: 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'victrixhominum-oauth-worker',
+            },
+            body: JSON.stringify({ access_token: accessToken }),
+          }).catch(() => { /* best-effort revocation */ });
+
+          return new Response(JSON.stringify({
+            error: 'Login is restricted to the site owner.',
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ access_token: accessToken }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

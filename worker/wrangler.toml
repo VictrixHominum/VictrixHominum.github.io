@@ -5,6 +5,7 @@ no_bundle = true
 
 [vars]
 ALLOWED_ORIGINS = "https://victrixhominum.github.io,http://127.0.0.1:5173,http://localhost:5173"
+ALLOWED_USER = "VictrixHominum"
 
 # ------------------------------------------------------------------
 # Setup: run this from the worker/ directory:
@@ -16,4 +17,9 @@ ALLOWED_ORIGINS = "https://victrixhominum.github.io,http://127.0.0.1:5173,http:/
 #
 # The client_id is sent by the frontend at runtime, so only the
 # secret needs to be stored here.
+#
+# ALLOWED_USER restricts login to a single GitHub account. The worker
+# verifies identity server-side by calling GitHub's /user API with
+# the token — a spoofed username in the request body is ignored.
+# If the user doesn't match, the token is revoked and never returned.
 # ------------------------------------------------------------------
