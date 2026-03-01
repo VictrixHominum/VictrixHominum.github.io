@@ -44,9 +44,16 @@ export default function BlogListPage() {
   const isAdmin = Boolean(user && role === 'admin');
   const location = useLocation();
 
-  // If we arrived here after deleting a post, strip it from the list immediately
-  const deletedSlug = (location.state as { deletedSlug?: string } | null)
+  // Collect slugs to exclude: navigation state (immediate) + sessionStorage (persisted)
+  const stateSlug = (location.state as { deletedSlug?: string } | null)
     ?.deletedSlug;
+  const deletedSlugs = useMemo(() => {
+    const stored: string[] = JSON.parse(
+      sessionStorage.getItem('deletedSlugs') || '[]',
+    );
+    if (stateSlug && !stored.includes(stateSlug)) stored.push(stateSlug);
+    return new Set(stored);
+  }, [stateSlug]);
 
   const [posts, setPosts] = useState<BlogPostMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,9 +81,9 @@ export default function BlogListPage() {
   }, []);
 
   const filteredPosts = useMemo(() => {
-    // Immediately exclude a just-deleted post so the UI stays in sync
-    const base = deletedSlug
-      ? posts.filter((p) => p.slug !== deletedSlug)
+    // Immediately exclude just-deleted posts so the UI stays in sync
+    const base = deletedSlugs.size > 0
+      ? posts.filter((p) => !deletedSlugs.has(p.slug))
       : posts;
 
     // Filter drafts for non-admin users
@@ -87,7 +94,7 @@ export default function BlogListPage() {
       : visible;
 
     return sortPosts(searched, currentSort);
-  }, [posts, searchQuery, currentSort, isAdmin, deletedSlug]);
+  }, [posts, searchQuery, currentSort, isAdmin, deletedSlugs]);
 
   return (
     <div className="min-h-screen">

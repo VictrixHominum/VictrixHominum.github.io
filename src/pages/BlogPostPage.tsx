@@ -26,6 +26,13 @@ export default function BlogPostPage() {
     setIsDeleting(true);
     try {
       await deletePost(slug, token);
+
+      // Track the deletion so cached lists on other pages can exclude it
+      const deleted: string[] = JSON.parse(sessionStorage.getItem('deletedSlugs') || '[]');
+      if (!deleted.includes(slug)) {
+        sessionStorage.setItem('deletedSlugs', JSON.stringify([...deleted, slug]));
+      }
+
       navigate('/blog', { state: { deletedSlug: slug } });
     } catch {
       setIsDeleting(false);

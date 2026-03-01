@@ -32,6 +32,12 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
+    // Deleted slugs tracked in sessionStorage so cached API responses
+    // don't resurface posts that were just deleted in this session.
+    const deletedSlugs: string[] = JSON.parse(
+      sessionStorage.getItem('deletedSlugs') || '[]',
+    );
+
     async function loadPosts() {
       try {
         const posts = await fetchAllPosts();
@@ -41,6 +47,7 @@ export default function HomePage() {
         cutoff.setDate(cutoff.getDate() - RECENT_DAYS);
 
         const recent = posts
+          .filter((post) => !deletedSlugs.includes(post.slug))
           .filter((post) => isAdmin || post.status !== 'draft')
           .filter((post) => new Date(post.date) >= cutoff);
 

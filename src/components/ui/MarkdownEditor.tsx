@@ -1,5 +1,5 @@
-import { useRef, useCallback } from 'react';
-import type { ChangeEvent } from 'react';
+import { Fragment, useRef, useCallback } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -12,17 +12,63 @@ export interface MarkdownEditorProps {
 
 interface ToolbarAction {
   label: string;
-  icon: string;
+  icon: ReactNode;
   prefix: string;
   suffix: string;
   block?: boolean;
+  /** Render a vertical divider before this button */
+  divider?: boolean;
+}
+
+// ---- Alignment SVG icons (16×16, three bars) ----
+
+function AlignLeftIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="2" width="14" height="2" rx="0.5" />
+      <rect x="1" y="7" width="8" height="2" rx="0.5" />
+      <rect x="1" y="12" width="11" height="2" rx="0.5" />
+    </svg>
+  );
+}
+
+function AlignCenterIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="2" width="14" height="2" rx="0.5" />
+      <rect x="4" y="7" width="8" height="2" rx="0.5" />
+      <rect x="2.5" y="12" width="11" height="2" rx="0.5" />
+    </svg>
+  );
+}
+
+function AlignRightIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="2" width="14" height="2" rx="0.5" />
+      <rect x="7" y="7" width="8" height="2" rx="0.5" />
+      <rect x="4" y="12" width="11" height="2" rx="0.5" />
+    </svg>
+  );
 }
 
 const toolbarActions: ToolbarAction[] = [
+  // Text formatting
   { label: 'Bold', icon: 'B', prefix: '**', suffix: '**' },
   { label: 'Italic', icon: 'I', prefix: '*', suffix: '*' },
-  { label: 'Heading', icon: 'H', prefix: '## ', suffix: '', block: true },
-  { label: 'Link', icon: '🔗', prefix: '[', suffix: '](url)' },
+
+  // Headings
+  { label: 'Heading 1', icon: 'H1', prefix: '# ', suffix: '', block: true, divider: true },
+  { label: 'Heading 2', icon: 'H2', prefix: '## ', suffix: '', block: true },
+  { label: 'Heading 3', icon: 'H3', prefix: '### ', suffix: '', block: true },
+
+  // Alignment
+  { label: 'Align Left', icon: <AlignLeftIcon />, prefix: '<div align="left">\n\n', suffix: '\n\n</div>', block: true, divider: true },
+  { label: 'Align Center', icon: <AlignCenterIcon />, prefix: '<div align="center">\n\n', suffix: '\n\n</div>', block: true },
+  { label: 'Align Right', icon: <AlignRightIcon />, prefix: '<div align="right">\n\n', suffix: '\n\n</div>', block: true },
+
+  // Rich content
+  { label: 'Link', icon: '🔗', prefix: '[', suffix: '](url)', divider: true },
   { label: 'Image', icon: '🖼', prefix: '![alt](', suffix: ')' },
   { label: 'Code', icon: '<>', prefix: '```\n', suffix: '\n```', block: true },
   { label: 'Quote', icon: '>', prefix: '> ', suffix: '', block: true },
@@ -172,16 +218,20 @@ export function MarkdownEditor({
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-3 py-2 border-b border-surface-300 bg-surface-100 overflow-x-auto">
         {toolbarActions.map((action) => (
-          <button
-            key={action.label}
-            type="button"
-            onClick={() => handleToolbarClick(action)}
-            title={action.label}
-            aria-label={action.label}
-            className="flex items-center justify-center h-8 min-w-[2rem] px-2 rounded-md text-sm text-gray-400 hover:text-gray-100 hover:bg-surface-200 transition-colors duration-150 font-mono shrink-0"
-          >
-            {action.icon}
-          </button>
+          <Fragment key={action.label}>
+            {action.divider && (
+              <div className="w-px h-5 bg-surface-300 mx-1 shrink-0" aria-hidden="true" />
+            )}
+            <button
+              type="button"
+              onClick={() => handleToolbarClick(action)}
+              title={action.label}
+              aria-label={action.label}
+              className="flex items-center justify-center h-8 min-w-[2rem] px-2 rounded-md text-sm text-gray-400 hover:text-gray-100 hover:bg-surface-200 transition-colors duration-150 font-mono shrink-0"
+            >
+              {action.icon}
+            </button>
+          </Fragment>
         ))}
 
         <input
