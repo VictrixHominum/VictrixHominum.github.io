@@ -1,4 +1,4 @@
-import { Fragment, useState, useRef, useCallback } from 'react';
+import { Fragment, useMemo, useState, useRef, useCallback } from 'react';
 import type { ChangeEvent, KeyboardEvent, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -116,6 +116,107 @@ function formatShortcut(sc: KeyboardShortcut): string {
   return sc.shift ? `Ctrl+Shift+${sc.key}` : `Ctrl+${sc.key}`;
 }
 
+// ---- Basic grammar checker ----
+
+interface GrammarIssue {
+  message: string;
+  line: number;
+  text: string;
+  suggestion?: string;
+}
+
+/**
+ * Run lightweight grammar checks on markdown content.
+ * Skips code blocks, HTML, and other non-prose lines.
+ */
+function checkGrammar(content: string): GrammarIssue[] {
+  if (!content.trim()) return [];
+
+  const issues: GrammarIssue[] = [];
+  const lines = content.split('\n');
+  let inCodeBlock = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Track fenced code blocks
+    if (trimmed.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
+
+    // Skip empty lines, horizontal rules, HTML tags, image-only lines
+    if (trimmed === '') continue;
+    if (/^---+$/.test(trimmed)) continue;
+    if (/^<\/?div[\s>]/.test(trimmed)) continue;
+    if (/^!\[.*\]\(.*\)$/.test(trimmed)) continue;
+
+    // Strip inline markdown syntax so we check prose only
+    const plain = trimmed
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // [text](url) → text
+      .replace(/!\[.*?\]\(.*?\)/g, '')           // images
+      .replace(/[*_~`]+/g, '')                   // emphasis / code markers
+      .replace(/^#{1,6}\s+/, '')                 // heading markers
+      .replace(/^>\s+/, '')                       // blockquote markers
+      .replace(/^[-*]\s+/, '')                    // unordered list markers
+      .replace(/^\d+\.\s+/, '')                   // ordered list markers
+      .replace(/\[\^\d+\]:?\s?/g, '');            // footnote refs / defs
+
+    if (plain.trim().length < 2) continue;
+
+    // 1. Repeated adjacent words ("the the", "is is")
+    const doubleWordRe = /\b(\w{2,})\s+\1\b/gi;
+    let match;
+    while ((match = doubleWordRe.exec(plain)) !== null) {
+      issues.push({
+        message: `Repeated word "${match[1]}"`,
+        line: i + 1,
+        text: match[0],
+        suggestion: match[1],
+      });
+    }
+
+    // 2. Multiple consecutive spaces (not leading whitespace)
+    if (/\S {2,}/.test(plain)) {
+      issues.push({
+        message: 'Extra spaces detected',
+        line: i + 1,
+        text: (plain.match(/\S( {2,})\S/) ?? [''])[0],
+        suggestion: 'Use a single space',
+      });
+    }
+
+    // 3. Missing capitalisation after sentence-ending punctuation
+    const missingCapRe = /[.!?]\s+[a-z]/g;
+    while ((match = missingCapRe.exec(plain)) !== null) {
+      // Skip common abbreviations
+      const prefix = plain.slice(Math.max(0, match.index - 4), match.index + 1);
+      if (/\b(e\.g|i\.e|vs|etc|Mr|Mrs|Dr|St|Jr|Sr)\./i.test(prefix)) continue;
+      issues.push({
+        message: 'Sentence should start with a capital letter',
+        line: i + 1,
+        text: plain.slice(match.index, match.index + match[0].length + 8).trim(),
+      });
+    }
+
+    // 4. Opening punctuation without closing (unmatched parentheses / quotes)
+    const opens = (plain.match(/\(/g) ?? []).length;
+    const closes = (plain.match(/\)/g) ?? []).length;
+    if (opens > closes) {
+      issues.push({
+        message: 'Unclosed parenthesis',
+        line: i + 1,
+        text: '(',
+        suggestion: 'Add a closing )',
+      });
+    }
+  }
+
+  return issues;
+}
+
 export function MarkdownEditor({
   value,
   onChange,
@@ -124,6 +225,8 @@ export function MarkdownEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showGrammar, setShowGrammar] = useState(false);
+  const grammarIssues = useMemo(() => checkGrammar(value), [value]);
   const [tooltip, setTooltip] = useState<{
     label: string;
     shortcut?: KeyboardShortcut;
@@ -328,6 +431,40 @@ export function MarkdownEditor({
           </svg>
         </button>
 
+        <button
+          type="button"
+          onClick={() => setShowGrammar((prev) => !prev)}
+          onMouseEnter={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setTooltip({
+              label: 'Grammar Check',
+              x: rect.left + rect.width / 2,
+              y: rect.bottom + 6,
+            });
+          }}
+          onMouseLeave={() => setTooltip(null)}
+          aria-label="Toggle grammar check"
+          aria-expanded={showGrammar}
+          className={`flex items-center gap-1 h-8 px-2 rounded-md text-sm transition-colors duration-150 font-mono shrink-0 ${
+            showGrammar
+              ? 'text-primary-400 bg-surface-200'
+              : 'text-gray-400 hover:text-gray-100 hover:bg-surface-200'
+          }`}
+        >
+          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
+            <path d="M2 12 L6 4 L10 12" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="3.5" y1="9.5" x2="8.5" y2="9.5" strokeLinecap="round" />
+            <path d="M11 6 L12.5 10 L14 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {grammarIssues.length > 0 && (
+            <span className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-sans font-medium ${
+              showGrammar ? 'bg-primary-500/20 text-primary-300' : 'bg-yellow-500/20 text-yellow-400'
+            }`}>
+              {grammarIssues.length}
+            </span>
+          )}
+        </button>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -356,6 +493,41 @@ export function MarkdownEditor({
         </div>
       )}
 
+      {/* Collapsible grammar issues panel */}
+      {showGrammar && (
+        <div className="px-4 py-3 border-b border-surface-300 bg-surface-100/50">
+          {grammarIssues.length === 0 ? (
+            <p className="text-xs text-green-400 flex items-center gap-1.5">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M3 8.5 L6.5 12 L13 4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              No grammar issues found
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {grammarIssues.map((issue, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-xs">
+                  <span className="text-yellow-400 shrink-0 mt-px">
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <path d="M8 1 L15 14 H1 Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                      <line x1="8" y1="6" x2="8" y2="10" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="8" cy="12" r="0.8" />
+                    </svg>
+                  </span>
+                  <span className="text-gray-400">
+                    <span className="text-gray-500">Ln {issue.line}:</span>{' '}
+                    {issue.message}
+                    {issue.suggestion && (
+                      <span className="text-gray-500"> — try: &ldquo;{issue.suggestion}&rdquo;</span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Editor and preview panes */}
       <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-surface-300 min-h-[400px]">
         {/* Editor pane — 2× wider than preview */}
@@ -369,7 +541,7 @@ export function MarkdownEditor({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Write your markdown here..."
-            spellCheck={false}
+            spellCheck
             className="flex-1 w-full p-4 bg-transparent text-gray-200 text-sm font-mono leading-relaxed placeholder-gray-600 resize-none focus:outline-none"
           />
         </div>
