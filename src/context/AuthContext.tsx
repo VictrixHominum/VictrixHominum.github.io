@@ -8,6 +8,7 @@ const STORAGE_KEY = 'github_token';
 interface AuthContextValue extends AuthState {
   login: () => void;
   logout: () => void;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -55,19 +56,22 @@ async function fetchUserRole(token: string): Promise<Role> {
 }
 
 async function exchangeCodeForToken(code: string): Promise<string> {
-  const response = await fetch(config.github.oauthWorkerUrl, {
+  const workerUrl = config.github.oauthWorkerUrl;
+  if (!workerUrl) {
+    throw new Error('OAuth worker URL is not configured (VITE_OAUTH_WORKER_URL)');
+  }
+
+  const response = await fetch(workerUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code, client_id: config.github.clientId }),
   });
 
-  if (!response.ok) {
-    throw new Error('Failed to exchange code for token');
-  }
-
   const data = await response.json();
-  if (!data.access_token) {
-    throw new Error('No access token in response');
+
+  if (!response.ok || !data.access_token) {
+    const detail = data.error || data.detail || `HTTP ${response.status}`;
+    throw new Error(`Token exchange failed: ${detail}`);
   }
 
   return data.access_token as string;
@@ -80,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: 'public',
     isLoading: true,
   });
+  const [error, setError] = useState<string | null>(null);
 
   const authenticateWithToken = useCallback(async (token: string) => {
     try {
@@ -108,7 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       exchangeCodeForToken(code)
         .then((token) => authenticateWithToken(token))
-        .catch(() => {
+        .catch((err: Error) => {
+          console.error('OAuth token exchange failed:', err.message);
+          setError(err.message);
           setState({
             user: null,
             token: null,
@@ -144,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, logout, error }}>
       {children}
     </AuthContext.Provider>
   );

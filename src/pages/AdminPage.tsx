@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button, LoadingSpinner } from '@/components/ui';
 
 export default function AdminPage() {
-  const { user, role, isLoading, login, logout } = useAuth();
+  const { user, role, isLoading, login, logout, error } = useAuth();
 
   if (isLoading) {
     return (
@@ -111,6 +111,13 @@ export default function AdminPage() {
           <p className="text-gray-400 text-sm mb-8">
             Sign in with GitHub to manage blog posts.
           </p>
+
+          {error && (
+            <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-left">
+              <p className="text-red-400 text-sm font-medium mb-1">Authentication failed</p>
+              <p className="text-red-300/70 text-xs font-mono break-all">{error}</p>
+            </div>
+          )}
 
           <Button variant="primary" size="lg" onClick={login} className="w-full">
             <svg
