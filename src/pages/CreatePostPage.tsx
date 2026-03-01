@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import type { BlogFormData } from '@/types/blog';
+import type { BlogFormData, PostStatus } from '@/types/blog';
 import { useAuth } from '@/context/AuthContext';
 import { createPost, uploadImage } from '@/services/github';
 import { Button, MarkdownEditor } from '@/components/ui';
@@ -43,6 +43,7 @@ export default function CreatePostPage() {
     [token],
   );
 
+  const submitStatusRef = useRef<PostStatus>('published');
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
@@ -98,13 +99,17 @@ export default function CreatePostPage() {
           coverImage: formData.coverImage.trim() || undefined,
           content: formData.content,
           author: user.name ?? user.login,
+          status: submitStatusRef.current,
         },
         token,
       );
 
       setFeedback({
         type: 'success',
-        message: 'Post created successfully! Redirecting...',
+        message:
+          submitStatusRef.current === 'draft'
+            ? 'Draft saved successfully! Redirecting...'
+            : 'Post published successfully! Redirecting...',
       });
 
       setTimeout(() => navigate('/blog'), 1500);
@@ -375,13 +380,24 @@ export default function CreatePostPage() {
           )}
 
           {/* Submit */}
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              type="submit"
+              variant="secondary"
+              size="lg"
+              loading={isSubmitting}
+              disabled={isSubmitting}
+              onClick={() => { submitStatusRef.current = 'draft'; }}
+            >
+              {isSubmitting ? 'Saving...' : 'Save as Draft'}
+            </Button>
             <Button
               type="submit"
               variant="primary"
               size="lg"
               loading={isSubmitting}
               disabled={isSubmitting}
+              onClick={() => { submitStatusRef.current = 'published'; }}
             >
               {isSubmitting ? 'Publishing...' : 'Publish Post'}
             </Button>

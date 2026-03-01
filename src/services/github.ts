@@ -1,4 +1,4 @@
-import type { BlogPost, BlogPostMeta } from '../types/blog';
+import type { BlogPost, BlogPostMeta, PostStatus } from '../types/blog';
 import { config } from '../config';
 
 const { owner, repo } = config.github;
@@ -105,6 +105,7 @@ function toMeta(
     tags: Array.isArray(data.tags) ? data.tags : [],
     coverImage: (data.coverImage as string) || undefined,
     author: (data.author as string) ?? '',
+    status: ((data.status as string) === 'draft' ? 'draft' : 'published') as PostStatus,
   };
 }
 
@@ -115,12 +116,14 @@ function buildFrontmatter(meta: {
   tags: string[];
   coverImage?: string;
   author: string;
+  status: PostStatus;
 }): string {
   const lines: string[] = ['---'];
   lines.push(`title: "${meta.title}"`);
   lines.push(`date: "${meta.date}"`);
   lines.push(`excerpt: "${meta.excerpt}"`);
   lines.push(`author: "${meta.author}"`);
+  lines.push(`status: "${meta.status}"`);
   if (meta.coverImage) {
     lines.push(`coverImage: "${meta.coverImage}"`);
   }
@@ -252,6 +255,7 @@ export async function createPost(
     coverImage?: string;
     content: string;
     author: string;
+    status: PostStatus;
   },
   token: string,
 ): Promise<void> {
@@ -265,6 +269,7 @@ export async function createPost(
     tags: data.tags,
     coverImage: data.coverImage,
     author: data.author,
+    status: data.status,
   });
 
   const fileContent = `${frontmatter}\n\n${data.content}\n`;
@@ -325,6 +330,7 @@ export async function updatePost(
     coverImage?: string;
     content: string;
     author: string;
+    status: PostStatus;
   },
   token: string,
 ): Promise<void> {
@@ -342,6 +348,7 @@ export async function updatePost(
     tags: data.tags,
     coverImage: data.coverImage,
     author: data.author,
+    status: data.status,
   });
 
   const fileContent = `${frontmatter}\n\n${data.content}\n`;

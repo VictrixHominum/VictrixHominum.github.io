@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { BlogPostMeta } from '@/types/blog';
 import { fetchAllPosts } from '@/services/github';
 import { Carousel, LoadingSpinner } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
 
 const RECENT_DAYS = 30;
 
@@ -17,6 +18,9 @@ const techStack = [
 ];
 
 export default function HomePage() {
+  const { user, role } = useAuth();
+  const isAdmin = Boolean(user && role === 'admin');
+
   const [recentPosts, setRecentPosts] = useState<BlogPostMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -31,9 +35,9 @@ export default function HomePage() {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - RECENT_DAYS);
 
-        const recent = posts.filter(
-          (post) => new Date(post.date) >= cutoff,
-        );
+        const recent = posts
+          .filter((post) => isAdmin || post.status !== 'draft')
+          .filter((post) => new Date(post.date) >= cutoff);
 
         setRecentPosts(recent);
       } catch {
@@ -47,7 +51,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAdmin]);
 
   return (
     <div className="min-h-screen">

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import type { BlogFormData } from '@/types/blog';
+import type { BlogFormData, PostStatus } from '@/types/blog';
 import { useAuth } from '@/context/AuthContext';
 import { fetchPostBySlug, updatePost, uploadImage } from '@/services/github';
 import {
@@ -37,6 +37,10 @@ export default function EditPostPage() {
   const [originalDate, setOriginalDate] = useState('');
   const [originalAuthor, setOriginalAuthor] = useState('');
 
+  // Status (editable)
+  const [currentStatus, setCurrentStatus] = useState<PostStatus>('published');
+  const [initialStatus, setInitialStatus] = useState<PostStatus>('published');
+
   // Snapshot of form data when the post was loaded — used for dirty detection
   const [initialData, setInitialData] = useState<BlogFormData | null>(null);
 
@@ -54,9 +58,10 @@ export default function EditPostPage() {
       formData.excerpt !== initialData.excerpt ||
       formData.tags !== initialData.tags ||
       formData.coverImage !== initialData.coverImage ||
-      formData.content !== initialData.content
+      formData.content !== initialData.content ||
+      currentStatus !== initialStatus
     );
-  }, [formData, initialData]);
+  }, [formData, initialData, currentStatus, initialStatus]);
 
   // ---- unsaved-changes guard ----
   const { blocker, proceed, reset } = useUnsavedChanges(isDirty);
@@ -89,6 +94,8 @@ export default function EditPostPage() {
         setInitialData(loaded);
         setOriginalDate(post.date);
         setOriginalAuthor(post.author);
+        setCurrentStatus(post.status);
+        setInitialStatus(post.status);
       } catch {
         if (!cancelled) setLoadError('Failed to load post. It may not exist.');
       } finally {
@@ -173,12 +180,14 @@ export default function EditPostPage() {
           coverImage: formData.coverImage.trim() || undefined,
           content: formData.content,
           author: originalAuthor,
+          status: currentStatus,
         },
         token,
       );
 
-      // Update the snapshot so the form is no longer dirty
+      // Update the snapshots so the form is no longer dirty
       setInitialData({ ...formData });
+      setInitialStatus(currentStatus);
       return true;
     } catch {
       setFeedback({
@@ -187,7 +196,7 @@ export default function EditPostPage() {
       });
       return false;
     }
-  }, [slug, token, user, formData, originalDate, originalAuthor]);
+  }, [slug, token, user, formData, originalDate, originalAuthor, currentStatus]);
 
   // ---- form submit ----
   async function handleSubmit(e: FormEvent) {
@@ -267,6 +276,35 @@ export default function EditPostPage() {
           >
             Cancel
           </Button>
+        </div>
+
+        {/* Status toggle */}
+        <div className="mb-6 flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-300">Status:</span>
+          <div className="flex rounded-lg border border-surface-300 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setCurrentStatus('draft')}
+              className={`px-4 py-1.5 text-sm font-medium transition-colors ${
+                currentStatus === 'draft'
+                  ? 'bg-yellow-500/20 text-yellow-400'
+                  : 'bg-surface-50 text-gray-400 hover:bg-surface-100'
+              }`}
+            >
+              Draft
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentStatus('published')}
+              className={`px-4 py-1.5 text-sm font-medium transition-colors border-l border-surface-300 ${
+                currentStatus === 'published'
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-surface-50 text-gray-400 hover:bg-surface-100'
+              }`}
+            >
+              Published
+            </button>
+          </div>
         </div>
 
         {/* Feedback banner */}

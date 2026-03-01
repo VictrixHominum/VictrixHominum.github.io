@@ -90,6 +90,17 @@ author: AuthorB
 
 Content of post B.`;
 
+const POST_DRAFT_RAW = `---
+title: Draft Post
+date: 2026-03-01
+excerpt: A draft
+tags: [WIP]
+author: AuthorC
+status: draft
+---
+
+This is a draft.`;
+
 // ---------------------------------------------------------------------------
 // fetchAllPosts
 // ---------------------------------------------------------------------------
@@ -119,10 +130,12 @@ describe('fetchAllPosts', () => {
     expect(posts[0].slug).toBe('post-b');
     expect(posts[0].date).toBe('2026-02-20');
     expect(posts[0].tags).toEqual(['Jest']);
+    expect(posts[0].status).toBe('published'); // no status in frontmatter defaults to published
 
     expect(posts[1].title).toBe('Post A');
     expect(posts[1].slug).toBe('post-a');
     expect(posts[1].tags).toEqual(['React', 'TypeScript']);
+    expect(posts[1].status).toBe('published');
   });
 
   it('skips files that fail to fetch', async () => {
@@ -161,6 +174,17 @@ describe('fetchPostBySlug', () => {
     expect(post.tags).toEqual(['React', 'TypeScript']);
     expect(post.author).toBe('AuthorA');
     expect(post.content).toBe('Content of post A.');
+    expect(post.status).toBe('published'); // defaults to published when no status
+  });
+
+  it('parses draft status from frontmatter', async () => {
+    mockFetch.mockResolvedValueOnce(okText(POST_DRAFT_RAW));
+
+    const post = await fetchPostBySlug('draft-post');
+
+    expect(post.title).toBe('Draft Post');
+    expect(post.status).toBe('draft');
+    expect(post.content).toBe('This is a draft.');
   });
 
   it('throws when the post is not found', async () => {
@@ -187,6 +211,7 @@ describe('createPost', () => {
         tags: ['React'],
         content: 'Hello world',
         author: 'TestAuthor',
+        status: 'published',
       },
       'fake-token',
     );

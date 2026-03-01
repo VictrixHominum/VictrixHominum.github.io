@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { BlogPostMeta, SortOption } from '@/types/blog';
 import { fetchAllPosts } from '@/services/github';
 import { Card, FilterBar, LoadingSpinner } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
 
 function sortPosts(posts: BlogPostMeta[], sort: SortOption): BlogPostMeta[] {
   const sorted = [...posts];
@@ -38,6 +39,9 @@ function matchesSearch(post: BlogPostMeta, query: string): boolean {
 }
 
 export default function BlogListPage() {
+  const { user, role } = useAuth();
+  const isAdmin = Boolean(user && role === 'admin');
+
   const [posts, setPosts] = useState<BlogPostMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,12 +68,15 @@ export default function BlogListPage() {
   }, []);
 
   const filteredPosts = useMemo(() => {
+    // Filter drafts for non-admin users
+    const visible = isAdmin ? posts : posts.filter((p) => p.status !== 'draft');
+
     const searched = searchQuery
-      ? posts.filter((post) => matchesSearch(post, searchQuery))
-      : posts;
+      ? visible.filter((post) => matchesSearch(post, searchQuery))
+      : visible;
 
     return sortPosts(searched, currentSort);
-  }, [posts, searchQuery, currentSort]);
+  }, [posts, searchQuery, currentSort, isAdmin]);
 
   return (
     <div className="min-h-screen">
@@ -94,7 +101,7 @@ export default function BlogListPage() {
             {filteredPosts.map((post) => (
               <Card
                 key={post.slug}
-                title={post.title}
+                title={post.status === 'draft' ? `[DRAFT] ${post.title}` : post.title}
                 slug={post.slug}
                 date={post.date}
                 excerpt={post.excerpt}

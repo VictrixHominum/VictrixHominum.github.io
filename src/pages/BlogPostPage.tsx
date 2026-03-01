@@ -46,7 +46,15 @@ export default function BlogPostPage() {
     async function loadPost() {
       try {
         const data = await fetchPostBySlug(slug!);
-        if (!cancelled) setPost(data);
+        if (cancelled) return;
+
+        // Block public access to drafts
+        if (data.status === 'draft' && !isAdmin) {
+          setError('Post not found.');
+          return;
+        }
+
+        setPost(data);
       } catch {
         if (!cancelled) setError('Failed to load post. It may not exist.');
       } finally {
@@ -58,7 +66,7 @@ export default function BlogPostPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, isAdmin]);
 
   if (isLoading) {
     return (
@@ -113,6 +121,9 @@ export default function BlogPostPage() {
         <header className="mb-10">
           <div className="flex items-start justify-between gap-4 mb-4">
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-100 leading-tight">
+              {post.status === 'draft' && (
+                <span className="text-yellow-400">[DRAFT] </span>
+              )}
               {post.title}
             </h1>
 

@@ -1,3 +1,5 @@
+export type PostStatus = 'published' | 'draft';
+
 export interface BlogPostMeta {
   title: string;
   slug: string;
@@ -6,6 +8,7 @@ export interface BlogPostMeta {
   tags: string[];
   coverImage?: string;
   author: string;
+  status: PostStatus;
 }
 
 export interface BlogPost extends BlogPostMeta {
