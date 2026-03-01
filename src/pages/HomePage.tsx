@@ -11,10 +11,15 @@ const techStack = [
   'TypeScript',
   'Node.js',
   'Python',
+  'FastAPI',
+  'Serverless',
+  'Bare Metal',
   'PostgreSQL',
   'AWS',
   'GraphQL',
-  'MySql'
+  'MySQL',
+  'TensorFlow',
+  'Keras'
 ];
 
 export default function HomePage() {
@@ -73,6 +78,8 @@ export default function HomePage() {
             I am an engineering leader with a focus on delivery and building a strong engineering culture.
             This site was mostly to test out AI tools but also as I wanted a place to write my anti-'analyslop'
             and technical ramblings.
+
+            No posts were created, edited or proofed by AI.
           </p>
 
           <div className="mt-8 flex items-center justify-center gap-4">
