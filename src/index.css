@@ -94,4 +94,39 @@
   .prose-blog td {
     @apply border border-surface-300 px-4 py-2;
   }
+
+  /* ── Footnotes ── */
+
+  .prose-blog section.footnotes {
+    @apply mt-12 pt-6 border-t border-surface-300;
+  }
+
+  .prose-blog section.footnotes > h2 {
+    @apply absolute w-px h-px overflow-hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .prose-blog section.footnotes ol {
+    @apply list-decimal pl-6 space-y-2 text-sm text-gray-400;
+  }
+
+  .prose-blog section.footnotes li {
+    @apply pl-1;
+  }
+
+  .prose-blog section.footnotes li p {
+    @apply mb-1 text-sm;
+  }
+
+  /* Inline superscript footnote reference */
+  .prose-blog sup a[data-footnote-ref] {
+    @apply text-primary-400 hover:text-primary-300 no-underline font-mono text-xs ml-0.5;
+  }
+
+  /* Back-reference arrow in footnote definitions */
+  .prose-blog a.data-footnote-backref {
+    @apply text-primary-400 hover:text-primary-300 no-underline ml-1 text-xs;
+  }
 }

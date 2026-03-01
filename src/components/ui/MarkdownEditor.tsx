@@ -29,7 +29,24 @@ const toolbarActions: ToolbarAction[] = [
   { label: 'Unordered List', icon: '•', prefix: '- ', suffix: '', block: true },
   { label: 'Ordered List', icon: '1.', prefix: '1. ', suffix: '', block: true },
   { label: 'Horizontal Rule', icon: '—', prefix: '\n---\n', suffix: '', block: true },
+  { label: 'Footnote', icon: '¹', prefix: '', suffix: '' },
 ];
+
+/**
+ * Scan content for `[^N]` footnote references and return the next
+ * available number (max existing + 1, or 1 if none found).
+ */
+function getNextFootnoteNumber(content: string): number {
+  const matches = content.match(/\[\^(\d+)\]/g);
+  if (!matches) return 1;
+
+  const used = matches.map((m) => {
+    const n = m.match(/\[\^(\d+)\]/);
+    return n ? parseInt(n[1], 10) : 0;
+  });
+
+  return Math.max(...used) + 1;
+}
 
 export function MarkdownEditor({
   value,
@@ -81,15 +98,50 @@ export function MarkdownEditor({
     [value, onChange],
   );
 
+  const insertFootnote = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const num = getNextFootnoteNumber(value);
+
+    const ref = `[^${num}]`;
+    const def = `[^${num}]: `;
+
+    // Insert the inline reference at the cursor position
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const withRef = before + ref + after;
+
+    // Append the definition at the very end, separated by a blank line
+    const trimmed = withRef.trimEnd();
+    const newText = (trimmed.length > 0 ? trimmed + '\n\n' : '') + def;
+
+    onChange(newText);
+
+    // Move cursor to the end of the definition so the user can type immediately
+    const cursorPos = newText.length;
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(cursorPos, cursorPos);
+      textarea.scrollTop = textarea.scrollHeight;
+    });
+  }, [value, onChange]);
+
   const handleToolbarClick = useCallback(
     (action: ToolbarAction) => {
       if (action.label === 'Image') {
         fileInputRef.current?.click();
         return;
       }
+      if (action.label === 'Footnote') {
+        insertFootnote();
+        return;
+      }
       insertMarkdown(action);
     },
-    [insertMarkdown],
+    [insertMarkdown, insertFootnote],
   );
 
   const handleImageFile = useCallback(
