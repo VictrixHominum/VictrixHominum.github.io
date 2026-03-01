@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { BlogPostMeta, SortOption } from '@/types/blog';
 import { fetchAllPosts } from '@/services/api';
 import { Card, FilterBar, LoadingSpinner } from '@/components/ui';
@@ -41,6 +42,11 @@ function matchesSearch(post: BlogPostMeta, query: string): boolean {
 export default function BlogListPage() {
   const { user, role } = useAuth();
   const isAdmin = Boolean(user && role === 'admin');
+  const location = useLocation();
+
+  // If we arrived here after deleting a post, strip it from the list immediately
+  const deletedSlug = (location.state as { deletedSlug?: string } | null)
+    ?.deletedSlug;
 
   const [posts, setPosts] = useState<BlogPostMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,15 +74,20 @@ export default function BlogListPage() {
   }, []);
 
   const filteredPosts = useMemo(() => {
+    // Immediately exclude a just-deleted post so the UI stays in sync
+    const base = deletedSlug
+      ? posts.filter((p) => p.slug !== deletedSlug)
+      : posts;
+
     // Filter drafts for non-admin users
-    const visible = isAdmin ? posts : posts.filter((p) => p.status !== 'draft');
+    const visible = isAdmin ? base : base.filter((p) => p.status !== 'draft');
 
     const searched = searchQuery
       ? visible.filter((post) => matchesSearch(post, searchQuery))
       : visible;
 
     return sortPosts(searched, currentSort);
-  }, [posts, searchQuery, currentSort, isAdmin]);
+  }, [posts, searchQuery, currentSort, isAdmin, deletedSlug]);
 
   return (
     <div className="min-h-screen">

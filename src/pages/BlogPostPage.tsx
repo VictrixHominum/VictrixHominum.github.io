@@ -26,7 +26,7 @@ export default function BlogPostPage() {
     setIsDeleting(true);
     try {
       await deletePost(slug, token);
-      navigate('/blog');
+      navigate('/blog', { state: { deletedSlug: slug } });
     } catch {
       setIsDeleting(false);
       setShowDeleteModal(false);
