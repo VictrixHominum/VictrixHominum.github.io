@@ -285,6 +285,32 @@ export async function createPost(
 }
 
 /**
+ * Delete a blog post by slug via the GitHub Contents API.
+ * Requires an authenticated token with repo write access.
+ * First fetches the file to obtain its SHA, then sends a DELETE request.
+ */
+export async function deletePost(
+  slug: string,
+  token: string,
+): Promise<void> {
+  const filename = filenameFromSlug(slug);
+  const path = `${postsDirectory}/${filename}`;
+  const apiPath = `/repos/${owner}/${repo}/contents/${path}`;
+
+  // Fetch the file metadata to get the current SHA (required by the API)
+  const file = await fetchGitHubApiAuth<{ sha: string }>(apiPath, token);
+
+  await fetchGitHubApiAuth(apiPath, token, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: `Delete blog post: ${slug}`,
+      sha: file.sha,
+    }),
+  });
+}
+
+/**
  * Upload an image to the blog images directory via the GitHub Contents API.
  * Returns the public URL of the uploaded image.
  */

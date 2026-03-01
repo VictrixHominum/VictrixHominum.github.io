@@ -7,6 +7,9 @@ export type { CardProps } from './Card.tsx';
 export { Carousel } from './Carousel.tsx';
 export type { BlogPostMeta, CarouselProps } from './Carousel.tsx';
 
+export { ConfirmModal } from './ConfirmModal.tsx';
+export type { ConfirmModalProps } from './ConfirmModal.tsx';
+
 export { FilterBar } from './FilterBar.tsx';
 export type { SortOption, FilterBarProps } from './FilterBar.tsx';
 
