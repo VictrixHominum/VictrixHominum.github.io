@@ -18,3 +18,6 @@ export type { MarkdownEditorProps } from './MarkdownEditor.tsx';
 
 export { LoadingSpinner } from './LoadingSpinner.tsx';
 export type { LoadingSpinnerProps } from './LoadingSpinner.tsx';
+
+export { UnsavedChangesModal } from './UnsavedChangesModal.tsx';
+export type { UnsavedChangesModalProps } from './UnsavedChangesModal.tsx';

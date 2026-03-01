@@ -311,6 +311,53 @@ export async function deletePost(
 }
 
 /**
+ * Update an existing blog post by slug via the GitHub Contents API.
+ * Requires an authenticated token with repo write access.
+ * Fetches the current SHA first, then PUTs the updated content.
+ */
+export async function updatePost(
+  slug: string,
+  data: {
+    title: string;
+    date: string;
+    excerpt: string;
+    tags: string[];
+    coverImage?: string;
+    content: string;
+    author: string;
+  },
+  token: string,
+): Promise<void> {
+  const filename = filenameFromSlug(slug);
+  const path = `${postsDirectory}/${filename}`;
+  const apiPath = `/repos/${owner}/${repo}/contents/${path}`;
+
+  // Fetch the file metadata to get the current SHA (required by the API)
+  const file = await fetchGitHubApiAuth<{ sha: string }>(apiPath, token);
+
+  const frontmatter = buildFrontmatter({
+    title: data.title,
+    date: data.date,
+    excerpt: data.excerpt,
+    tags: data.tags,
+    coverImage: data.coverImage,
+    author: data.author,
+  });
+
+  const fileContent = `${frontmatter}\n\n${data.content}\n`;
+
+  await fetchGitHubApiAuth(apiPath, token, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: `Update blog post: ${data.title}`,
+      content: btoa(unescape(encodeURIComponent(fileContent))),
+      sha: file.sha,
+    }),
+  });
+}
+
+/**
  * Upload an image to the blog images directory via the GitHub Contents API.
  * Returns the public URL of the uploaded image.
  */

@@ -7,6 +7,7 @@ import BlogListPage from '@/pages/BlogListPage';
 import BlogPostPage from '@/pages/BlogPostPage';
 import AdminPage from '@/pages/AdminPage';
 import CreatePostPage from '@/pages/CreatePostPage';
+import EditPostPage from '@/pages/EditPostPage';
 import OAuthCallbackPage from '@/pages/OAuthCallbackPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
@@ -28,6 +29,7 @@ function App() {
             {/* Protected admin routes */}
             <Route element={<ProtectedRoute requiredRole="admin" />}>
               <Route path="/admin/create" element={<CreatePostPage />} />
+              <Route path="/admin/edit/:slug" element={<EditPostPage />} />
             </Route>
 
             {/* 404 */}
